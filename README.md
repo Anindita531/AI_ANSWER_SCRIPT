@@ -1,4 +1,3 @@
-"# AI_ANSWER_SCRIPT" 
 const fs = require('fs');
 
 const readmeContent = `# 🤖 ScriptSense AI - Smart Grading System
