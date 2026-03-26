@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ScriptSense AI -  Grading System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f4f7f6; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .card { border: none; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); }
+        .header-box { background: linear-gradient(135deg, #ff6b6b, #ee5253); color: white; padding: 40px 0; border-bottom-left-radius: 50% 20px; border-bottom-right-radius: 50% 20px; }
+        .btn-primary { background-color: #ff6b6b; border: none; padding: 12px 30px; border-radius: 10px; transition: 0.3s; }
+        .btn-primary:hover { background-color: #ee5253; transform: translateY(-2px); }
+        #resultArea { display: none; }
+        .loader { display: none; border: 4px solid #f3f3f3; border-top: 4px solid #ff6b6b; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .status-pill { padding: 5px 15px; border-radius: 20px; font-weight: bold; font-size: 0.9rem; }
+    </style>
+</head>
+<body>
+
+<div class="header-box text-center mb-5">
+    <h1 class="display-4 fw-bold">ScriptSense <span style="color: #ffeaa7;">AI</span></h1>
+    <p class="lead">Advanced Handwritten Evaluation for Academic Projects</p>
+</div>
+
+<div class="container mb-5">
+    <div class="row justify-content-center">
+        <div class="col-md-9 col-lg-7">
+            
+            <div class="card p-4 mb-4">
+                <form id="uploadForm">
+                    <div class="mb-4">
+                        <label class="form-label fw-bold text-secondary">Step 1: Reference / Model Answer</label>
+                        <textarea id="modelAnswer" class="form-control mb-2" rows="3" placeholder="Paste the correct answer or key points here..."></textarea>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light">OR Upload PDF</span>
+                            <input type="file" id="modelPdf" class="form-control" accept=".pdf">
+                        </div>
+                        <small class="text-muted mt-1 d-block">AI will use the PDF text if uploaded, otherwise it will use the text box.</small>
+                    </div>
+
+                    <hr class="my-4">
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold text-secondary">Step 2: Max Marks</label>
+                            <input type="number" id="maxMarks" class="form-control" value="10" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold text-secondary">Step 3: Student Script</label>
+                            <input type="file" id="scriptFile" class="form-control" accept="image/*,.pdf" required>
+                        </div>
+                    </div>
+
+                    <div class="text-center mt-4">
+                        <button type="submit" class="btn btn-primary w-100 fw-bold shadow-sm" id="submitBtn">
+                            🚀 START EVALUATION
+                        </button>
+                        <div class="loader mx-auto mt-3" id="loader"></div>
+                    </div>
+                </form>
+            </div>
+
+            <div id="resultArea" class="card p-4 mt-4 animate__animated animate__fadeIn">
+                <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
+                    <h3 class="mb-0">Evaluation Report</h3>
+                    <span id="statusBadge" class="status-pill">Checking...</span>
+                </div>
+
+                <div class="row text-center mb-4">
+                    <div class="col-6 border-end">
+                        <small class="text-uppercase text-muted fw-bold">Score</small>
+                        <div class="h1 fw-bold text-dark mt-1">
+                            <span id="marksDisplay" class="text-success">0</span><span class="text-muted h4"> / <span id="maxMarksDisplay">10</span></span>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <small class="text-uppercase text-muted fw-bold">AI Reliability</small>
+                        <div class="h4 mt-2 text-primary">High Accuracy</div>
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="fw-bold text-secondary mb-2">📄 AI Transcription (Read from script):</label>
+                    <div id="transcriptionBox" class="p-3 bg-light rounded border border-secondary-subtle" style="font-style: italic; white-space: pre-wrap;"></div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="fw-bold text-secondary mb-2">💡 Feedback & Suggestions:</label>
+                    <div id="feedbackBox" class="p-3 bg-white border rounded shadow-sm"></div>
+                </div>
+                
+                <button class="btn btn-outline-danger w-100 fw-bold" onclick="window.location.reload()">
+                    RESET & TRY ANOTHER
+                </button>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script>
+    document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const submitBtn = document.getElementById('submitBtn');
+        const loader = document.getElementById('loader');
+        const resultArea = document.getElementById('resultArea');
+        
+        // UI Updates
+        submitBtn.disabled = true;
+        submitBtn.innerText = "Analyzing Content...";
+        loader.style.display = 'block';
+        resultArea.style.display = 'none';
+
+        // Prepare Multi-part Form Data
+        const formData = new FormData();
+        formData.append('modelAnswer', document.getElementById('modelAnswer').value);
+        formData.append('maxMarks', document.getElementById('maxMarks').value);
+        formData.append('script', document.getElementById('scriptFile').files[0]);
+
+        // Model PDF add korar logic
+        const modelPdfFile = document.getElementById('modelPdf').files[0];
+        if (modelPdfFile) {
+            formData.append('modelPdf', modelPdfFile);
+        }
+
+        try {
+            const response = await fetch('/evaluate', {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await response.json();
+
+            if (data.error) throw new Error(data.error);
+
+            // Populate Results
+            document.getElementById('marksDisplay').innerText = data.marks_obtained ?? 0;
+            document.getElementById('maxMarksDisplay').innerText = document.getElementById('maxMarks').value;
+            document.getElementById('transcriptionBox').innerText = data.transcription || "No handwriting detected.";
+            document.getElementById('feedbackBox').innerHTML = data.feedback ? data.feedback.replace(/\n/g, '<br>') : "No specific feedback.";
+            
+            // Dynamic Status Logic
+            const percentage = (data.marks_obtained / document.getElementById('maxMarks').value) * 100;
+            const badge = document.getElementById('statusBadge');
+            
+            if (percentage >= 80) {
+                badge.innerText = "Excellent Result";
+                badge.style.backgroundColor = "#d1e7dd";
+                badge.style.color = "#0f5132";
+            } else if (percentage >= 40) {
+                badge.innerText = "Average Performance";
+                badge.style.backgroundColor = "#fff3cd";
+                badge.style.color = "#664d03";
+            } else {
+                badge.innerText = "Needs Improvement";
+                badge.style.backgroundColor = "#f8d7da";
+                badge.style.color = "#842029";
+            }
+
+            resultArea.style.display = 'block';
+            resultArea.scrollIntoView({ behavior: 'smooth' });
+
+        } catch (error) {
+            console.error("Evaluation Error:", error);
+            alert("Something went wrong: " + error.message);
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.innerText = "Grade Script Now";
+            loader.style.display = 'none';
+        }
+    });
+</script>
+
+</body>
+</html>
