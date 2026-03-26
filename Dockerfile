@@ -1,6 +1,7 @@
 FROM node:18
 
 RUN apt-get update && apt-get install -y \
+    poppler-utils \
     libcairo2-dev \
     libjpeg-dev \
     libpango1.0-dev \
